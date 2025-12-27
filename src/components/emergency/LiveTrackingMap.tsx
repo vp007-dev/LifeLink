@@ -1,12 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Locate } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface LiveTrackingMapProps {
   userLocation: { lat: number; lng: number } | null;
   responderLocation?: { lat: number; lng: number } | null;
   hospitalLocation?: { lat: number; lng: number } | null;
   showResponder?: boolean;
+  onDistanceUpdate?: (distance: number, eta: number) => void;
 }
 
 // Custom icon creator
@@ -36,11 +39,46 @@ const userIcon = createIcon('#ef4444', '🆘');
 const responderIcon = createIcon('#22c55e', '🏍️');
 const hospitalIcon = createIcon('#3b82f6', '🏥');
 
+// Calculate distance between two coordinates in meters (Haversine formula)
+const calculateDistance = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number => {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Calculate ETA in minutes based on distance (assuming 25 km/h average city speed)
+const calculateETA = (distanceMeters: number): number => {
+  const speedMps = 25 * 1000 / 3600; // 25 km/h in m/s
+  return Math.ceil(distanceMeters / speedMps / 60);
+};
+
+// Format distance for display
+const formatDistance = (meters: number): string => {
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`;
+  }
+  return `${(meters / 1000).toFixed(1)} km`;
+};
+
 const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   userLocation,
   responderLocation,
   hospitalLocation,
   showResponder = false,
+  onDistanceUpdate,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -52,6 +90,38 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   
   const [simulatedResponder, setSimulatedResponder] = useState<{ lat: number; lng: number } | null>(null);
   const [simulatedHospital, setSimulatedHospital] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Current responder position (either provided or simulated)
+  const currentResponder = responderLocation || simulatedResponder;
+  const currentHospital = hospitalLocation || simulatedHospital;
+
+  // Calculate live distance and ETA
+  const { distance, eta } = useMemo(() => {
+    if (!userLocation || !currentResponder || !showResponder) {
+      return { distance: 0, eta: 0 };
+    }
+    const dist = calculateDistance(
+      userLocation.lat,
+      userLocation.lng,
+      currentResponder.lat,
+      currentResponder.lng
+    );
+    return { distance: dist, eta: calculateETA(dist) };
+  }, [userLocation, currentResponder, showResponder]);
+
+  // Notify parent of distance/ETA updates
+  useEffect(() => {
+    if (onDistanceUpdate && showResponder && distance > 0) {
+      onDistanceUpdate(distance, eta);
+    }
+  }, [distance, eta, onDistanceUpdate, showResponder]);
+
+  // Re-center handler
+  const handleRecenter = useCallback(() => {
+    if (mapRef.current && userLocation) {
+      mapRef.current.setView([userLocation.lat, userLocation.lng], 16, { animate: true });
+    }
+  }, [userLocation]);
 
   // Simulate responder and hospital locations for demo
   useEffect(() => {
@@ -146,8 +216,6 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   useEffect(() => {
     if (!mapRef.current) return;
 
-    const currentResponder = responderLocation || simulatedResponder;
-
     if (currentResponder && showResponder) {
       if (responderMarkerRef.current) {
         responderMarkerRef.current.setLatLng([currentResponder.lat, currentResponder.lng]);
@@ -160,13 +228,11 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       mapRef.current.removeLayer(responderMarkerRef.current);
       responderMarkerRef.current = null;
     }
-  }, [responderLocation, simulatedResponder, showResponder]);
+  }, [currentResponder, showResponder]);
 
   // Update hospital marker
   useEffect(() => {
     if (!mapRef.current) return;
-
-    const currentHospital = hospitalLocation || simulatedHospital;
 
     if (currentHospital && showResponder) {
       if (hospitalMarkerRef.current) {
@@ -180,14 +246,11 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       mapRef.current.removeLayer(hospitalMarkerRef.current);
       hospitalMarkerRef.current = null;
     }
-  }, [hospitalLocation, simulatedHospital, showResponder]);
+  }, [currentHospital, showResponder]);
 
   // Draw route line between responder -> user -> hospital
   useEffect(() => {
     if (!mapRef.current) return;
-
-    const currentResponder = responderLocation || simulatedResponder;
-    const currentHospital = hospitalLocation || simulatedHospital;
 
     if (userLocation && currentResponder && showResponder) {
       const routePoints: L.LatLngExpression[] = [
@@ -213,7 +276,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       mapRef.current.removeLayer(routeLineRef.current);
       routeLineRef.current = null;
     }
-  }, [userLocation, responderLocation, hospitalLocation, simulatedResponder, simulatedHospital, showResponder]);
+  }, [userLocation, currentResponder, currentHospital, showResponder]);
 
   // Loading state
   if (!userLocation) {
@@ -231,8 +294,29 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     <div className="relative w-full h-48 rounded-xl overflow-hidden border border-border">
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       
+      {/* Re-center button */}
+      <Button
+        variant="glass"
+        size="icon"
+        className="absolute top-2 left-2 z-[1000] h-8 w-8"
+        onClick={handleRecenter}
+        title="Re-center to your location"
+      >
+        <Locate className="w-4 h-4" />
+      </Button>
+
+      {/* Live ETA/Distance overlay when responder is active */}
+      {showResponder && distance > 0 && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] bg-success/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-semibold text-success-foreground flex items-center gap-2 shadow-lg">
+          <span className="animate-pulse">🏍️</span>
+          <span>{formatDistance(distance)}</span>
+          <span className="text-success-foreground/70">•</span>
+          <span>{eta} min</span>
+        </div>
+      )}
+      
       {/* Legend */}
-      <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm rounded-lg p-2 text-xs space-y-1">
+      <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm rounded-lg p-2 text-xs space-y-1 z-[1000]">
         <div className="flex items-center gap-2">
           <span className="text-sm">🆘</span>
           <span>Your Location</span>
