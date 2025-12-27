@@ -1,9 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Shield, BarChart3, Heart } from 'lucide-react';
+import { Phone, Shield, BarChart3 } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
 import RoleCard from '@/components/common/RoleCard';
 import ThemeToggle from '@/components/theme/ThemeToggle';
+import logo from '@/assets/logo.png';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
@@ -18,8 +19,8 @@ const Index: React.FC = () => {
 
         {/* Logo and Title */}
         <div className="text-center mb-10 stagger-children">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary mb-4">
-            <Heart className="w-8 h-8 text-primary-foreground" strokeWidth={2} />
+          <div className="inline-flex items-center justify-center w-20 h-20 mb-4">
+            <img src={logo} alt="LifeLink Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-1">
             LifeLink
