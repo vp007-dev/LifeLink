@@ -48,6 +48,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   const responderMarkerRef = useRef<L.Marker | null>(null);
   const hospitalMarkerRef = useRef<L.Marker | null>(null);
   const routeLineRef = useRef<L.Polyline | null>(null);
+  const initialViewSetRef = useRef<boolean>(false);
   
   const [simulatedResponder, setSimulatedResponder] = useState<{ lat: number; lng: number } | null>(null);
   const [simulatedHospital, setSimulatedHospital] = useState<{ lat: number; lng: number } | null>(null);
@@ -117,7 +118,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     };
   }, []);
 
-  // Update user location on map
+  // Update user location marker (but don't reset view after initial set)
   useEffect(() => {
     if (!mapRef.current || !userLocation) return;
 
@@ -129,7 +130,11 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
         .bindPopup('<b>Your Location</b><br/>Help is on the way!');
     }
 
-    mapRef.current.setView([userLocation.lat, userLocation.lng], 16, { animate: true });
+    // Only set initial view once
+    if (!initialViewSetRef.current) {
+      mapRef.current.setView([userLocation.lat, userLocation.lng], 16, { animate: true });
+      initialViewSetRef.current = true;
+    }
   }, [userLocation]);
 
   // Update responder marker
@@ -199,10 +204,6 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
           dashArray: '10, 10',
         }).addTo(mapRef.current);
       }
-
-      // Fit bounds to show all markers
-      const bounds = L.latLngBounds(routePoints);
-      mapRef.current.fitBounds(bounds, { padding: [40, 40] });
     } else if (routeLineRef.current) {
       mapRef.current.removeLayer(routeLineRef.current);
       routeLineRef.current = null;
