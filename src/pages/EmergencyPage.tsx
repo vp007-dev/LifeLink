@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
@@ -17,6 +17,8 @@ const EmergencyPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [state, setState] = useState<EmergencyState>('idle');
+  const [liveDistance, setLiveDistance] = useState<number>(0);
+  const [liveEta, setLiveEta] = useState<number>(0);
   
   const { 
     latitude, 
@@ -66,6 +68,20 @@ const EmergencyPage: React.FC = () => {
   const locationDisplay = locationLoading 
     ? 'Detecting location...' 
     : address || `${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}`;
+
+  // Callback for live distance/ETA updates from map
+  const handleDistanceUpdate = useCallback((distance: number, eta: number) => {
+    setLiveDistance(distance);
+    setLiveEta(eta);
+  }, []);
+
+  // Format distance for display
+  const formatDistance = (meters: number): string => {
+    if (meters < 1000) {
+      return `${Math.round(meters)} m away`;
+    }
+    return `${(meters / 1000).toFixed(1)} km away`;
+  };
 
   const handleEmergencyPress = () => {
     if (state === 'idle') {
@@ -126,6 +142,7 @@ const EmergencyPage: React.FC = () => {
               responderLocation={responderLocation}
               hospitalLocation={state !== 'idle' ? hospitalLocation : null}
               showResponder={state === 'found' || state === 'arriving'}
+              onDistanceUpdate={handleDistanceUpdate}
             />
           </div>
         )}
@@ -161,7 +178,8 @@ const EmergencyPage: React.FC = () => {
                 <StatusCard
                   type="eta"
                   title="Estimated Arrival"
-                  value={state === 'arriving' ? '2 mins' : '4 mins'}
+                  value={liveEta > 0 ? `${liveEta} min` : 'Calculating...'}
+                  subtitle={liveDistance > 0 ? formatDistance(liveDistance) : undefined}
                   status="active"
                 />
               )}
