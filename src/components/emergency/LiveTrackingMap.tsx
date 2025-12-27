@@ -223,7 +223,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
 
   return (
     <div className="relative w-full h-48 rounded-xl overflow-hidden border border-border">
-      <div ref={mapContainer} className="absolute inset-0" />
+      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       
       {/* Legend */}
       <div className="absolute bottom-2 left-2 bg-background/90 backdrop-blur-sm rounded-lg p-2 text-xs space-y-1">
