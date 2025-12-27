@@ -5,6 +5,7 @@ import MobileLayout from '@/components/layout/MobileLayout';
 import Header from '@/components/common/Header';
 import StatCard from '@/components/admin/StatCard';
 import ActivityLog from '@/components/admin/ActivityLog';
+import IncidentHeatmap from '@/components/admin/IncidentHeatmap';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -95,7 +96,7 @@ const AdminPage: React.FC = () => {
           />
         </div>
 
-        {/* Heatmap Placeholder */}
+        {/* Real Heatmap */}
         <Card variant="gradient" className="animate-fade-in-up">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -104,35 +105,7 @@ const AdminPage: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="aspect-video rounded-lg bg-secondary/50 flex items-center justify-center relative overflow-hidden">
-              {/* Simulated heatmap */}
-              <div className="absolute inset-0">
-                <div className="absolute top-1/4 left-1/3 w-16 h-16 rounded-full bg-emergency/30 blur-xl" />
-                <div className="absolute top-1/2 left-1/2 w-20 h-20 rounded-full bg-emergency/40 blur-xl" />
-                <div className="absolute bottom-1/3 right-1/4 w-12 h-12 rounded-full bg-warning/30 blur-xl" />
-                <div className="absolute top-1/3 right-1/3 w-10 h-10 rounded-full bg-warning/20 blur-xl" />
-              </div>
-              <div className="relative z-10 text-center">
-                <Map className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Delhi NCR Region
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-center gap-6 mt-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-emergency/50" />
-                <span>High</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-warning/50" />
-                <span>Medium</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-success/50" />
-                <span>Low</span>
-              </div>
-            </div>
+            <IncidentHeatmap />
           </CardContent>
         </Card>
 
