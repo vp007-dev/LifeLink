@@ -3,13 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Phone, Shield, BarChart3, Heart } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
 import RoleCard from '@/components/common/RoleCard';
+import ThemeToggle from '@/components/theme/ThemeToggle';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
 
   return (
     <MobileLayout className="px-5 pb-5">
-      <div className="flex-1 flex flex-col justify-center">
+      <div className="flex-1 flex flex-col justify-center relative">
+        {/* Theme toggle */}
+        <div className="absolute top-0 right-0">
+          <ThemeToggle />
+        </div>
+
         {/* Logo and Title */}
         <div className="text-center mb-10 stagger-children">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary mb-4">

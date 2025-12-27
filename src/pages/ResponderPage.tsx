@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Navigation, CheckCircle } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
 import Header from '@/components/common/Header';
+import ThemeToggle from '@/components/theme/ThemeToggle';
 import AvailabilityToggle from '@/components/responder/AvailabilityToggle';
 import AlertCard from '@/components/responder/AlertCard';
 import StatusCard from '@/components/emergency/StatusCard';
@@ -109,6 +110,7 @@ const ResponderPage: React.FC = () => {
           subtitle="Help save lives in your area"
           showBack
           onBack={() => navigate('/')}
+          action={<ThemeToggle />}
         />
       }
     >
