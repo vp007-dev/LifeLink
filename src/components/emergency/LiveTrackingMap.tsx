@@ -89,12 +89,12 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     }
   }, [userLocation, showResponder]);
 
-  // Initialize map
+  // Initialize map (wait until the container is actually rendered)
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
     const defaultCenter: L.LatLngExpression = [20.5937, 78.9629]; // Center of India
-    
+
     mapRef.current = L.map(mapContainer.current, {
       center: defaultCenter,
       zoom: 5,
@@ -110,13 +110,18 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     // Add zoom control to top-right
     L.control.zoom({ position: 'topright' }).addTo(mapRef.current);
 
+    // Ensure Leaflet measures the container correctly (especially after conditional rendering)
+    requestAnimationFrame(() => {
+      mapRef.current?.invalidateSize();
+    });
+
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [userLocation]);
 
   // Update user location marker (but don't reset view after initial set)
   useEffect(() => {
