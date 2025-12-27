@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Navigation, CheckCircle } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
@@ -6,9 +6,11 @@ import Header from '@/components/common/Header';
 import AvailabilityToggle from '@/components/responder/AvailabilityToggle';
 import AlertCard from '@/components/responder/AlertCard';
 import StatusCard from '@/components/emergency/StatusCard';
+import ResponderNavigationMap from '@/components/responder/ResponderNavigationMap';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useGeolocation } from '@/hooks/useGeolocation';
 
 type ResponderState = 'offline' | 'waiting' | 'alert' | 'navigating' | 'completed';
 
@@ -17,6 +19,43 @@ const ResponderPage: React.FC = () => {
   const { toast } = useToast();
   const [state, setState] = useState<ResponderState>('offline');
   const [isOnline, setIsOnline] = useState(false);
+  const [liveDistance, setLiveDistance] = useState<number>(0);
+  const [liveEta, setLiveEta] = useState<number>(0);
+
+  // Get responder's current location
+  const { latitude, longitude } = useGeolocation(true);
+
+  // Simulated patient location (emergency call location)
+  const patientLocation = useMemo(() => ({
+    lat: 28.5355 + 0.008, // Slightly offset for demo
+    lng: 77.391 + 0.006,
+  }), []);
+
+  // Simulated hospital location
+  const hospitalLocation = useMemo(() => ({
+    lat: 28.5355 - 0.005,
+    lng: 77.391 + 0.008,
+  }), []);
+
+  // Responder's current location
+  const responderLocation = useMemo(() => {
+    if (!latitude || !longitude) return null;
+    return { lat: latitude, lng: longitude };
+  }, [latitude, longitude]);
+
+  // Callback for live distance/ETA updates from map
+  const handleDistanceUpdate = useCallback((distance: number, eta: number) => {
+    setLiveDistance(distance);
+    setLiveEta(eta);
+  }, []);
+
+  // Format distance for display
+  const formatDistance = (meters: number): string => {
+    if (meters < 1000) {
+      return `${Math.round(meters)} m`;
+    }
+    return `${(meters / 1000).toFixed(1)} km`;
+  };
 
   const handleToggle = () => {
     const newOnline = !isOnline;
@@ -109,6 +148,14 @@ const ResponderPage: React.FC = () => {
         {/* Navigation State */}
         {state === 'navigating' && (
           <div className="space-y-4 stagger-children">
+            {/* Navigation Map */}
+            <ResponderNavigationMap
+              responderLocation={responderLocation}
+              patientLocation={patientLocation}
+              hospitalLocation={hospitalLocation}
+              onDistanceUpdate={handleDistanceUpdate}
+            />
+
             <Card variant="gradient">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -127,7 +174,8 @@ const ResponderPage: React.FC = () => {
                 <StatusCard
                   type="eta"
                   title="Distance"
-                  value="1.2 km away"
+                  value={liveDistance > 0 ? formatDistance(liveDistance) : 'Calculating...'}
+                  subtitle={liveEta > 0 ? `ETA: ${liveEta} min` : undefined}
                   status="active"
                 />
                 <StatusCard
