@@ -7,7 +7,6 @@ import StatCard from '@/components/admin/StatCard';
 import ActivityLog from '@/components/admin/ActivityLog';
 import IncidentHeatmap from '@/components/admin/IncidentHeatmap';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const mockActivities = [
   {
@@ -54,18 +53,18 @@ const AdminPage: React.FC = () => {
           showBack
           onBack={() => navigate('/')}
           action={
-            <Button variant="glass" size="sm">
-              <Download className="w-4 h-4" />
-            </Button>
+            <button className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center touch-feedback">
+              <Download className="w-5 h-5 text-foreground" />
+            </button>
           }
         />
       }
     >
-      <div className="flex-1 p-4 space-y-4 overflow-auto">
+      <div className="flex-1 px-5 pb-5 space-y-4 overflow-auto">
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           <StatCard
-            title="Active Emergencies"
+            title="Active"
             value={3}
             icon={AlertTriangle}
             variant="emergency"
@@ -73,7 +72,7 @@ const AdminPage: React.FC = () => {
             trendValue="2"
           />
           <StatCard
-            title="Responders Online"
+            title="Responders"
             value={47}
             icon={Users}
             variant="success"
@@ -81,7 +80,7 @@ const AdminPage: React.FC = () => {
             trendValue="12%"
           />
           <StatCard
-            title="Avg Response Time"
+            title="Avg Time"
             value="3.2m"
             icon={Clock}
             variant="primary"
@@ -89,25 +88,21 @@ const AdminPage: React.FC = () => {
             trendValue="15%"
           />
           <StatCard
-            title="Resolved Today"
+            title="Resolved"
             value={28}
             icon={CheckCircle}
             variant="success"
           />
         </div>
 
-        {/* Real Heatmap */}
-        <Card variant="gradient" className="animate-fade-in-up">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Map className="w-5 h-5 text-primary" />
-              Incident Heatmap
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <IncidentHeatmap />
-          </CardContent>
-        </Card>
+        {/* Heatmap Section */}
+        <div className="rounded-2xl bg-secondary p-4 animate-fade-in-up">
+          <div className="flex items-center gap-2 mb-3">
+            <Map className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold text-foreground">Incident Heatmap</h3>
+          </div>
+          <IncidentHeatmap />
+        </div>
 
         {/* Activity Log */}
         <ActivityLog activities={mockActivities} />

@@ -123,7 +123,7 @@ const EmergencyPage: React.FC = () => {
         />
       }
     >
-      <div className="flex-1 flex flex-col p-4 overflow-y-auto">
+      <div className="flex-1 flex flex-col px-5 pb-5 overflow-y-auto">
         {/* Location Permission Fallback */}
         {permissionDenied && (
           <div className="mb-4">
@@ -219,8 +219,6 @@ const EmergencyPage: React.FC = () => {
         {state === 'idle' && (
           <p className="text-center text-sm text-muted-foreground mb-4">
             Press the SOS button to alert nearby emergency responders.
-            <br />
-            <span className="text-xs">No login required in emergency mode.</span>
           </p>
         )}
       </div>

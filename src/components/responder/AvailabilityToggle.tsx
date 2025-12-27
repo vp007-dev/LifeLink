@@ -16,11 +16,11 @@ const AvailabilityToggle: React.FC<AvailabilityToggleProps> = ({
     <button
       onClick={onToggle}
       className={cn(
-        "relative w-full p-4 rounded-xl border-2 transition-all duration-300",
+        "w-full p-4 rounded-2xl transition-all duration-200 touch-feedback",
         "flex items-center justify-between",
         isOnline
-          ? "border-success/50 bg-success/10"
-          : "border-border bg-secondary/30",
+          ? "bg-success/10"
+          : "bg-secondary",
         className
       )}
       aria-label={isOnline ? 'Go offline' : 'Go online'}
@@ -28,7 +28,7 @@ const AvailabilityToggle: React.FC<AvailabilityToggleProps> = ({
       <div className="flex items-center gap-3">
         <div className={cn(
           "w-3 h-3 rounded-full transition-colors",
-          isOnline ? "bg-success animate-pulse" : "bg-muted-foreground"
+          isOnline ? "bg-success animate-pulse-subtle" : "bg-muted-foreground"
         )} />
         <div className="text-left">
           <p className="font-semibold text-foreground">
@@ -42,12 +42,12 @@ const AvailabilityToggle: React.FC<AvailabilityToggleProps> = ({
       
       {/* Toggle switch */}
       <div className={cn(
-        "w-14 h-8 rounded-full p-1 transition-colors",
-        isOnline ? "bg-success" : "bg-secondary"
+        "w-12 h-7 rounded-full p-1 transition-colors",
+        isOnline ? "bg-success" : "bg-muted-foreground/30"
       )}>
         <div className={cn(
-          "w-6 h-6 rounded-full bg-foreground transition-transform",
-          isOnline ? "translate-x-6" : "translate-x-0"
+          "w-5 h-5 rounded-full bg-white transition-transform",
+          isOnline ? "translate-x-5" : "translate-x-0"
         )} />
       </div>
     </button>

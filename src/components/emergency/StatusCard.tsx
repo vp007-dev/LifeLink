@@ -1,6 +1,5 @@
 import React from 'react';
 import { MapPin, Clock, User, Navigation } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 interface StatusCardProps {
@@ -27,51 +26,57 @@ const StatusCard: React.FC<StatusCardProps> = ({
     hospital: Navigation,
   };
 
-  const statusColors = {
-    pending: 'text-muted-foreground',
-    active: 'text-primary',
-    success: 'text-success',
+  const statusStyles = {
+    pending: {
+      icon: 'text-muted-foreground',
+      bg: 'bg-secondary',
+      border: '',
+    },
+    active: {
+      icon: 'text-primary',
+      bg: 'bg-primary/10',
+      border: 'border-l-2 border-l-primary',
+    },
+    success: {
+      icon: 'text-success',
+      bg: 'bg-success/10',
+      border: 'border-l-2 border-l-success',
+    },
   };
 
   const Icon = icons[type];
+  const styles = statusStyles[status];
 
   return (
-    <Card 
-      variant="gradient" 
+    <div 
       className={cn(
-        "animate-fade-in-up",
-        status === 'active' && "border-primary/50",
-        status === 'success' && "border-success/50",
+        "p-4 rounded-2xl bg-secondary animate-fade-in-up",
+        styles.border,
         className
       )}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className={cn(
-            "p-2 rounded-lg bg-secondary",
-            statusColors[status]
-          )}>
-            <Icon className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-              {title}
-            </p>
-            <p className={cn(
-              "font-semibold text-foreground truncate",
-              status === 'active' && "text-primary"
-            )}>
-              {value}
-            </p>
-            {subtitle && (
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {subtitle}
-              </p>
-            )}
-          </div>
+      <div className="flex items-center gap-3">
+        <div className={cn(
+          "w-10 h-10 rounded-xl flex items-center justify-center",
+          styles.bg
+        )}>
+          <Icon className={cn("w-5 h-5", styles.icon)} />
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+            {title}
+          </p>
+          <p className="font-semibold text-foreground truncate">
+            {value}
+          </p>
+          {subtitle && (
+            <p className="text-sm text-muted-foreground">
+              {subtitle}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 

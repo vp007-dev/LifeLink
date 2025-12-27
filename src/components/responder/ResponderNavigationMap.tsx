@@ -263,24 +263,20 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
       
       {/* Control buttons */}
       <div className="absolute top-2 left-2 z-[1000] flex gap-2">
-        <Button
-          variant="glass"
-          size="icon"
-          className="h-8 w-8"
+        <button
+          className="h-8 w-8 rounded-lg bg-background/90 backdrop-blur-sm flex items-center justify-center touch-feedback"
           onClick={handleRecenter}
           title="Re-center to your location"
         >
-          <Locate className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="glass"
-          size="icon"
-          className="h-8 w-8"
+          <Locate className="w-4 h-4 text-foreground" />
+        </button>
+        <button
+          className="h-8 w-8 rounded-lg bg-background/90 backdrop-blur-sm flex items-center justify-center touch-feedback"
           onClick={handleFitAll}
           title="Fit all markers in view"
         >
-          <Navigation className="w-4 h-4" />
-        </Button>
+          <Navigation className="w-4 h-4 text-foreground" />
+        </button>
       </div>
 
       {/* Live ETA/Distance overlay */}

@@ -1,6 +1,5 @@
 import React from 'react';
 import { LucideIcon, ChevronRight } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 interface RoleCardProps {
@@ -21,43 +20,46 @@ const RoleCard: React.FC<RoleCardProps> = ({
   className,
 }) => {
   const variantStyles = {
-    default: 'hover:border-primary/50',
-    emergency: 'hover:border-emergency/50 bg-emergency/5',
-    primary: 'hover:border-primary/50 bg-primary/5',
+    default: 'bg-secondary',
+    emergency: 'bg-emergency/10',
+    primary: 'bg-primary/10',
   };
 
   const iconStyles = {
-    default: 'text-muted-foreground bg-secondary',
+    default: 'text-foreground bg-background',
     emergency: 'text-emergency bg-emergency/10',
     primary: 'text-primary bg-primary/10',
   };
 
+  const iconWrapperStyles = {
+    default: 'bg-background',
+    emergency: 'bg-white',
+    primary: 'bg-white',
+  };
+
   return (
-    <Card
-      variant="gradient"
+    <button
       className={cn(
-        "cursor-pointer transition-all duration-200 active:scale-[0.98]",
+        "w-full p-4 rounded-2xl transition-all duration-200 touch-feedback",
         variantStyles[variant],
         className
       )}
       onClick={onClick}
     >
-      <CardContent className="p-5">
-        <div className="flex items-center gap-4">
-          <div className={cn(
-            "p-3 rounded-xl",
-            iconStyles[variant]
-          )}>
-            <Icon className="w-6 h-6" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-foreground">{title}</h3>
-            <p className="text-sm text-muted-foreground">{description}</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+      <div className="flex items-center gap-4">
+        <div className={cn(
+          "w-12 h-12 rounded-xl flex items-center justify-center",
+          iconWrapperStyles[variant]
+        )}>
+          <Icon className={cn("w-6 h-6", iconStyles[variant].split(' ')[0])} />
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex-1 text-left">
+          <h3 className="font-semibold text-foreground">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+      </div>
+    </button>
   );
 };
 

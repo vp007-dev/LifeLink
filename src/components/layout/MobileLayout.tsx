@@ -15,9 +15,9 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
   footer,
 }) => {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col max-w-md mx-auto">
       {header && (
-        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 py-3 safe-area-top">
+        <header className="sticky top-0 z-50 bg-background px-5 pt-3 pb-2 safe-area-top">
           {header}
         </header>
       )}
@@ -25,7 +25,7 @@ const MobileLayout: React.FC<MobileLayoutProps> = ({
         {children}
       </main>
       {footer && (
-        <footer className="sticky bottom-0 z-50 bg-background/80 backdrop-blur-lg border-t border-border/50 px-4 py-3 safe-area-bottom">
+        <footer className="sticky bottom-0 z-50 bg-background px-5 py-3 safe-area-bottom">
           {footer}
         </footer>
       )}
