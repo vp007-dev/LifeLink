@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
 import Header from '@/components/common/Header';
 import EmergencyButton from '@/components/emergency/EmergencyButton';
 import StatusCard from '@/components/emergency/StatusCard';
+import LiveTrackingMap from '@/components/emergency/LiveTrackingMap';
+import LocationPermissionFallback from '@/components/emergency/LocationPermissionFallback';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useGeolocation } from '@/hooks/useGeolocation';
 
 type EmergencyState = 'idle' | 'requesting' | 'searching' | 'found' | 'arriving';
 
@@ -14,15 +17,55 @@ const EmergencyPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [state, setState] = useState<EmergencyState>('idle');
-  const [location, setLocation] = useState<string>('Detecting location...');
+  
+  const { 
+    latitude, 
+    longitude, 
+    address, 
+    loading: locationLoading, 
+    error: locationError, 
+    permissionDenied,
+    retry: retryLocation 
+  } = useGeolocation(true);
 
+  // Simulated responder location (moves toward user)
+  const [responderOffset, setResponderOffset] = useState({ lat: 0.008, lng: 0.006 });
+  
+  // Simulated hospital location
+  const hospitalLocation = useMemo(() => {
+    if (!latitude || !longitude) return null;
+    return { lat: latitude + 0.012, lng: longitude - 0.008 };
+  }, [latitude, longitude]);
+
+  // Simulate responder movement
   useEffect(() => {
-    // Simulate location detection
-    const timer = setTimeout(() => {
-      setLocation('Sector 18, Noida, UP');
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    if (state === 'found' || state === 'arriving') {
+      const interval = setInterval(() => {
+        setResponderOffset(prev => ({
+          lat: Math.max(0, prev.lat - 0.001),
+          lng: Math.max(0, prev.lng - 0.001),
+        }));
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [state]);
+
+  const responderLocation = useMemo(() => {
+    if (!latitude || !longitude || (state !== 'found' && state !== 'arriving')) return null;
+    return { 
+      lat: latitude + responderOffset.lat, 
+      lng: longitude + responderOffset.lng 
+    };
+  }, [latitude, longitude, state, responderOffset]);
+
+  const userLocation = useMemo(() => {
+    if (!latitude || !longitude) return null;
+    return { lat: latitude, lng: longitude };
+  }, [latitude, longitude]);
+
+  const locationDisplay = locationLoading 
+    ? 'Detecting location...' 
+    : address || `${latitude?.toFixed(4)}, ${longitude?.toFixed(4)}`;
 
   const handleEmergencyPress = () => {
     if (state === 'idle') {
@@ -64,9 +107,31 @@ const EmergencyPage: React.FC = () => {
         />
       }
     >
-      <div className="flex-1 flex flex-col p-4">
+      <div className="flex-1 flex flex-col p-4 overflow-y-auto">
+        {/* Location Permission Fallback */}
+        {permissionDenied && (
+          <div className="mb-4">
+            <LocationPermissionFallback 
+              error={locationError || 'Location access denied'} 
+              onRetry={retryLocation} 
+            />
+          </div>
+        )}
+
+        {/* Live Tracking Map */}
+        {!permissionDenied && (
+          <div className="mb-4">
+            <LiveTrackingMap
+              userLocation={userLocation}
+              responderLocation={responderLocation}
+              hospitalLocation={state !== 'idle' ? hospitalLocation : null}
+              showResponder={state === 'found' || state === 'arriving'}
+            />
+          </div>
+        )}
+
         {/* Main Emergency Button */}
-        <div className="flex-1 flex items-center justify-center py-8">
+        <div className="flex items-center justify-center py-6">
           <EmergencyButton
             onPress={handleEmergencyPress}
             isActive={state !== 'idle'}
@@ -78,8 +143,8 @@ const EmergencyPage: React.FC = () => {
           <StatusCard
             type="location"
             title="Your Location"
-            value={location}
-            status={location !== 'Detecting location...' ? 'active' : 'pending'}
+            value={locationDisplay}
+            status={!locationLoading && !locationError ? 'active' : 'pending'}
           />
 
           {state !== 'idle' && (
