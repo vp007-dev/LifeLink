@@ -1,6 +1,5 @@
 import React from 'react';
-import { MapPin, Clock, Phone, Navigation } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MapPin, Clock, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -24,50 +23,50 @@ const AlertCard: React.FC<AlertCardProps> = ({
   className,
 }) => {
   return (
-    <Card 
-      variant="emergency" 
-      className={cn("animate-fade-in-up overflow-hidden", className)}
+    <div 
+      className={cn(
+        "rounded-2xl bg-emergency/5 border border-emergency/20 overflow-hidden animate-fade-in-up",
+        className
+      )}
     >
-      {/* Emergency header bar */}
-      <div className="h-1 emergency-gradient" />
-      
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emergency animate-pulse" />
-          <span className="text-xs font-semibold text-emergency uppercase tracking-wider">
+      {/* Header */}
+      <div className="p-4 border-b border-emergency/10">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-2 h-2 rounded-full bg-emergency animate-pulse-subtle" />
+          <span className="text-xs font-semibold text-emergency uppercase tracking-wide">
             Emergency Alert
           </span>
         </div>
-        <CardTitle className="text-lg mt-2">
+        <h3 className="text-lg font-bold text-foreground">
           Medical Emergency Nearby
-        </CardTitle>
-      </CardHeader>
+        </h3>
+      </div>
 
-      <CardContent className="space-y-4">
+      <div className="p-4 space-y-3">
         {/* Info grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/50">
-            <Navigation className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary">
+            <Navigation className="w-5 h-5 text-primary" />
             <div>
               <p className="text-xs text-muted-foreground">Distance</p>
-              <p className="font-semibold">{distance}</p>
+              <p className="font-semibold text-foreground">{distance}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/50">
-            <Clock className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary">
+            <Clock className="w-5 h-5 text-primary" />
             <div>
               <p className="text-xs text-muted-foreground">ETA</p>
-              <p className="font-semibold">{eta}</p>
+              <p className="font-semibold text-foreground">{eta}</p>
             </div>
           </div>
         </div>
 
         {/* Location */}
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-secondary/50">
-          <MapPin className="w-4 h-4 text-primary mt-0.5" />
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-secondary">
+          <MapPin className="w-5 h-5 text-primary mt-0.5" />
           <div className="flex-1">
             <p className="text-xs text-muted-foreground">Location</p>
-            <p className="text-sm">{location}</p>
+            <p className="text-sm text-foreground">{location}</p>
           </div>
         </div>
 
@@ -75,6 +74,7 @@ const AlertCard: React.FC<AlertCardProps> = ({
         <div className="flex gap-3 pt-2">
           <Button 
             variant="outline" 
+            size="lg"
             className="flex-1"
             onClick={onReject}
           >
@@ -82,14 +82,15 @@ const AlertCard: React.FC<AlertCardProps> = ({
           </Button>
           <Button 
             variant="emergencyStatic" 
+            size="lg"
             className="flex-1"
             onClick={onAccept}
           >
             Accept
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

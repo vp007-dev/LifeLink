@@ -1,6 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -21,20 +20,18 @@ const Header: React.FC<HeaderProps> = ({
   className,
 }) => {
   return (
-    <div className={cn("flex items-center justify-between", className)}>
-      <div className="flex items-center gap-3">
+    <div className={cn("flex items-center justify-between py-2", className)}>
+      <div className="flex items-center gap-4">
         {showBack && (
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={onBack}
-            className="shrink-0"
+            className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center touch-feedback"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
         )}
         <div>
-          <h1 className="text-xl font-bold text-foreground">{title}</h1>
+          <h1 className="text-lg font-bold text-foreground">{title}</h1>
           {subtitle && (
             <p className="text-sm text-muted-foreground">{subtitle}</p>
           )}

@@ -9,12 +9,16 @@ export default {
       center: true,
       padding: "1rem",
       screens: {
-        "2xl": "1400px",
+        sm: "100%",
+        md: "100%",
+        lg: "100%",
+        xl: "100%",
+        "2xl": "100%",
       },
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -76,8 +80,14 @@ export default {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 8px)",
+        "2xl": "1.25rem",
+        "3xl": "1.5rem",
+      },
+      spacing: {
+        "safe-top": "env(safe-area-inset-top)",
+        "safe-bottom": "env(safe-area-inset-bottom)",
       },
       keyframes: {
         "accordion-down": {

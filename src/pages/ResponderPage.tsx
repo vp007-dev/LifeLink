@@ -7,7 +7,6 @@ import AvailabilityToggle from '@/components/responder/AvailabilityToggle';
 import AlertCard from '@/components/responder/AlertCard';
 import StatusCard from '@/components/emergency/StatusCard';
 import ResponderNavigationMap from '@/components/responder/ResponderNavigationMap';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
@@ -27,7 +26,7 @@ const ResponderPage: React.FC = () => {
 
   // Simulated patient location (emergency call location)
   const patientLocation = useMemo(() => ({
-    lat: 28.5355 + 0.008, // Slightly offset for demo
+    lat: 28.5355 + 0.008,
     lng: 77.391 + 0.006,
   }), []);
 
@@ -113,25 +112,23 @@ const ResponderPage: React.FC = () => {
         />
       }
     >
-      <div className="flex-1 flex flex-col p-4 space-y-4">
+      <div className="flex-1 flex flex-col px-5 pb-5 space-y-4">
         {/* Availability Toggle */}
         <AvailabilityToggle isOnline={isOnline} onToggle={handleToggle} />
 
         {/* Waiting State */}
         {state === 'waiting' && (
-          <Card variant="gradient" className="animate-fade-in-up">
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <div className="w-4 h-4 rounded-full bg-success animate-pulse" />
-              </div>
-              <h3 className="font-semibold text-foreground mb-2">
-                Waiting for Emergencies
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                You'll be notified when someone nearby needs help.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-2xl bg-secondary p-6 text-center animate-fade-in-up">
+            <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
+              <div className="w-4 h-4 rounded-full bg-success animate-pulse-subtle" />
+            </div>
+            <h3 className="font-semibold text-foreground mb-1">
+              Waiting for Emergencies
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              You'll be notified when someone nearby needs help.
+            </p>
+          </div>
         )}
 
         {/* Alert Card */}
@@ -156,14 +153,12 @@ const ResponderPage: React.FC = () => {
               onDistanceUpdate={handleDistanceUpdate}
             />
 
-            <Card variant="gradient">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Navigation className="w-5 h-5 text-primary" />
-                  Active Rescue
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <div className="rounded-2xl bg-secondary p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Navigation className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-foreground">Active Rescue</h3>
+              </div>
+              <div className="space-y-3">
                 <StatusCard
                   type="location"
                   title="Patient Location"
@@ -185,8 +180,8 @@ const ResponderPage: React.FC = () => {
                   subtitle="For handover"
                   status="pending"
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             <Button
               variant="success"
@@ -202,44 +197,38 @@ const ResponderPage: React.FC = () => {
 
         {/* Completed State */}
         {state === 'completed' && (
-          <Card variant="gradient" className="animate-fade-in-up border-success/50">
-            <CardContent className="p-6 text-center">
-              <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8 text-success" />
-              </div>
-              <h3 className="font-semibold text-foreground mb-2">
-                Rescue Completed!
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Thank you for helping save a life today.
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-2xl bg-success/10 p-6 text-center animate-fade-in-up">
+            <div className="w-14 h-14 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-7 h-7 text-success" />
+            </div>
+            <h3 className="font-semibold text-foreground mb-1">
+              Rescue Completed!
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Thank you for helping save a life today.
+            </p>
+          </div>
         )}
 
         {/* Stats when offline */}
         {state === 'offline' && (
-          <Card variant="gradient" className="animate-fade-in-up">
-            <CardHeader>
-              <CardTitle className="text-base">Your Stats</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold text-primary">12</p>
-                  <p className="text-xs text-muted-foreground">Rescues</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-success">4.8</p>
-                  <p className="text-xs text-muted-foreground">Rating</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-foreground">3m</p>
-                  <p className="text-xs text-muted-foreground">Avg Time</p>
-                </div>
+          <div className="rounded-2xl bg-secondary p-4 animate-fade-in-up">
+            <h3 className="font-semibold text-foreground mb-4">Your Stats</h3>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="p-3 rounded-xl bg-background">
+                <p className="text-2xl font-bold text-primary">12</p>
+                <p className="text-xs text-muted-foreground">Rescues</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="p-3 rounded-xl bg-background">
+                <p className="text-2xl font-bold text-success">4.8</p>
+                <p className="text-xs text-muted-foreground">Rating</p>
+              </div>
+              <div className="p-3 rounded-xl bg-background">
+                <p className="text-2xl font-bold text-foreground">3m</p>
+                <p className="text-xs text-muted-foreground">Avg Time</p>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </MobileLayout>

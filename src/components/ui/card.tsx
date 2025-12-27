@@ -4,14 +4,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
-  "rounded-xl text-card-foreground transition-all duration-200",
+  "rounded-2xl text-card-foreground transition-all duration-200",
   {
     variants: {
       variant: {
-        default: "bg-card border border-border shadow-lg",
-        glass: "bg-card/50 backdrop-blur-md border border-border/50",
-        gradient: "bg-gradient-to-br from-card to-background border border-border/50 shadow-lg",
-        emergency: "bg-emergency/10 border border-emergency/30",
+        default: "bg-card",
+        flat: "bg-secondary",
+        outline: "bg-transparent border border-border",
+        emergency: "bg-emergency/5 border border-emergency/20",
+        success: "bg-success/5 border border-success/20",
+        primary: "bg-primary/5 border border-primary/20",
       },
     },
     defaultVariants: {
@@ -41,7 +43,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-5", className)}
+    className={cn("flex flex-col space-y-1 p-4", className)}
     {...props}
   />
 ));
@@ -54,7 +56,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
+      "text-base font-semibold leading-none tracking-tight",
       className
     )}
     {...props}
@@ -78,7 +80,7 @@ const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-5 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-4 pt-0", className)} {...props} />
 ));
 CardContent.displayName = "CardContent";
 
@@ -88,7 +90,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-5 pt-0", className)}
+    className={cn("flex items-center p-4 pt-0", className)}
     {...props}
   />
 ));

@@ -295,15 +295,13 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       
       {/* Re-center button */}
-      <Button
-        variant="glass"
-        size="icon"
-        className="absolute top-2 left-2 z-[1000] h-8 w-8"
+      <button
+        className="absolute top-2 left-2 z-[1000] h-8 w-8 rounded-lg bg-background/90 backdrop-blur-sm flex items-center justify-center touch-feedback"
         onClick={handleRecenter}
         title="Re-center to your location"
       >
-        <Locate className="w-4 h-4" />
-      </Button>
+        <Locate className="w-4 h-4 text-foreground" />
+      </button>
 
       {/* Live ETA/Distance overlay when responder is active */}
       {showResponder && distance > 0 && (

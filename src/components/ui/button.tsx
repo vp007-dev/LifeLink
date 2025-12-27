@@ -5,30 +5,31 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-border bg-transparent hover:bg-secondary hover:text-secondary-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-secondary hover:text-secondary-foreground",
+        default: "bg-primary text-primary-foreground hover:opacity-90",
+        destructive: "bg-destructive text-destructive-foreground hover:opacity-90",
+        outline: "border border-border bg-transparent text-foreground hover:bg-secondary",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-accent",
+        ghost: "hover:bg-secondary text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        emergency: "emergency-gradient text-foreground emergency-shadow hover:opacity-90 animate-emergency-pulse",
-        emergencyStatic: "emergency-gradient text-foreground emergency-shadow hover:opacity-90",
-        success: "bg-success text-success-foreground hover:bg-success/90",
-        warning: "bg-warning text-warning-foreground hover:bg-warning/90",
-        glass: "bg-secondary/50 backdrop-blur-sm border border-border/50 text-foreground hover:bg-secondary/70",
+        emergency: "bg-emergency text-emergency-foreground hover:opacity-90 animate-emergency-pulse",
+        emergencyStatic: "bg-emergency text-emergency-foreground hover:opacity-90",
+        success: "bg-success text-success-foreground hover:opacity-90",
+        warning: "bg-warning text-warning-foreground hover:opacity-90",
+        flat: "bg-secondary text-foreground hover:bg-accent",
       },
       size: {
-        default: "h-11 px-5 py-2",
-        sm: "h-9 rounded-md px-3 text-xs",
-        lg: "h-12 rounded-lg px-8 text-base",
-        xl: "h-14 rounded-xl px-10 text-lg",
-        icon: "h-11 w-11",
+        default: "h-12 px-5 py-2",
+        sm: "h-10 rounded-lg px-4 text-sm",
+        lg: "h-14 rounded-xl px-6 text-base",
+        xl: "h-16 rounded-2xl px-8 text-lg",
+        icon: "h-12 w-12",
+        iconSm: "h-10 w-10 rounded-lg",
         iconLg: "h-14 w-14",
-        emergency: "h-40 w-40 rounded-full text-xl",
+        emergency: "h-36 w-36 rounded-full text-xl",
       },
     },
     defaultVariants: {

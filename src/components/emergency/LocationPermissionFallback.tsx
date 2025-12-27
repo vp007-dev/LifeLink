@@ -13,8 +13,8 @@ const LocationPermissionFallback: React.FC<LocationPermissionFallbackProps> = ({
   onRetry,
 }) => {
   return (
-    <Card variant="gradient" className="border-destructive/50">
-      <CardContent className="p-4 text-center">
+    <Card variant="outline" className="border-destructive/50 bg-destructive/5">
+      <CardContent className="p-4 pt-4 text-center">
         <div className="w-12 h-12 rounded-full bg-destructive/20 flex items-center justify-center mx-auto mb-3">
           <MapPinOff className="w-6 h-6 text-destructive" />
         </div>

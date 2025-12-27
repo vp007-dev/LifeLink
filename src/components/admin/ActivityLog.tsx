@@ -1,6 +1,5 @@
 import React from 'react';
 import { Clock, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 interface Activity {
@@ -40,14 +39,12 @@ const ActivityLog: React.FC<ActivityLogProps> = ({
   };
 
   return (
-    <Card variant="gradient" className={cn("animate-fade-in-up", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-primary" />
-          Recent Activity
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className={cn("rounded-2xl bg-secondary p-4 animate-fade-in-up", className)}>
+      <div className="flex items-center gap-2 mb-4">
+        <Clock className="w-5 h-5 text-primary" />
+        <h3 className="font-semibold text-foreground">Recent Activity</h3>
+      </div>
+      <div className="space-y-3">
         {activities.map((activity, index) => {
           const config = typeConfig[activity.type];
           const Icon = config.icon;
@@ -55,10 +52,10 @@ const ActivityLog: React.FC<ActivityLogProps> = ({
           return (
             <div
               key={activity.id}
-              className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 animate-slide-in-right"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              className="flex items-start gap-3 p-3 rounded-xl bg-background animate-slide-in-right"
+              style={{ animationDelay: `${index * 0.05}s` }}
             >
-              <div className={cn("p-2 rounded-lg", config.bg)}>
+              <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", config.bg)}>
                 <Icon className={cn("w-4 h-4", config.color)} />
               </div>
               <div className="flex-1 min-w-0">
@@ -69,8 +66,8 @@ const ActivityLog: React.FC<ActivityLogProps> = ({
                   {activity.location}
                 </p>
                 {activity.responder && (
-                  <p className="text-xs text-primary mt-1">
-                    Responder: {activity.responder}
+                  <p className="text-xs text-primary mt-0.5">
+                    {activity.responder}
                   </p>
                 )}
               </div>
@@ -80,8 +77,8 @@ const ActivityLog: React.FC<ActivityLogProps> = ({
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
