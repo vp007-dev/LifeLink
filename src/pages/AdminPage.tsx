@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Users, Clock, CheckCircle, Download, Map } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
 import Header from '@/components/common/Header';
+import ThemeToggle from '@/components/theme/ThemeToggle';
 import StatCard from '@/components/admin/StatCard';
 import ActivityLog from '@/components/admin/ActivityLog';
 import IncidentHeatmap from '@/components/admin/IncidentHeatmap';
@@ -53,9 +54,12 @@ const AdminPage: React.FC = () => {
           showBack
           onBack={() => navigate('/')}
           action={
-            <button className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center touch-feedback">
-              <Download className="w-5 h-5 text-foreground" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center touch-feedback" aria-label="Download report" title="Download">
+                <Download className="w-5 h-5 text-foreground" />
+              </button>
+              <ThemeToggle />
+            </div>
           }
         />
       }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
 import Header from '@/components/common/Header';
+import ThemeToggle from '@/components/theme/ThemeToggle';
 import EmergencyButton from '@/components/emergency/EmergencyButton';
 import StatusCard from '@/components/emergency/StatusCard';
 import LiveTrackingMap from '@/components/emergency/LiveTrackingMap';
@@ -10,6 +11,7 @@ import LocationPermissionFallback from '@/components/emergency/LocationPermissio
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { triggerEmergencyFeedback } from '@/lib/feedback';
 
 type EmergencyState = 'idle' | 'requesting' | 'searching' | 'found' | 'arriving';
 
@@ -84,6 +86,9 @@ const EmergencyPage: React.FC = () => {
   };
 
   const handleEmergencyPress = () => {
+    // Accessibility feedback (requires a user gesture, so fire immediately)
+    triggerEmergencyFeedback();
+
     if (state === 'idle') {
       setState('requesting');
       toast({
@@ -120,6 +125,7 @@ const EmergencyPage: React.FC = () => {
           subtitle="One tap to get immediate assistance"
           showBack
           onBack={() => navigate('/')}
+          action={<ThemeToggle />}
         />
       }
     >

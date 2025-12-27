@@ -116,10 +116,11 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     }
   }, [distance, eta, onDistanceUpdate, showResponder]);
 
-  // Re-center handler
+  // Re-center handler (preserve current zoom; don't force zoom changes)
   const handleRecenter = useCallback(() => {
     if (mapRef.current && userLocation) {
-      mapRef.current.setView([userLocation.lat, userLocation.lng], 16, { animate: true });
+      const currentZoom = mapRef.current.getZoom();
+      mapRef.current.setView([userLocation.lat, userLocation.lng], currentZoom, { animate: true });
     }
   }, [userLocation]);
 
