@@ -1,3 +1,6 @@
+![Poster](poster.png)
+
+
 # LifeLink – Emergency First Responder Network
 
 Live prototype here:  
