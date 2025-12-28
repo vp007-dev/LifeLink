@@ -144,17 +144,8 @@ Health Department Log
 
 ```
 ## 📹 Video Overview
-We will prepare a short video walkthrough (~1–2 minutes) demonstrating:
 
-- User tapping the distress button
-- Live location capture
-- Responder notification
-- Nearest hospital detection
-- Emergency log in dashboard
-
-The video will be linked here when uploaded:
-
-👉 Add YouTube or Drive link here
+👉 https://youtu.be/mpJaJp4DS5U
 
 
 ## 🚀 Planned Features for Round-2
