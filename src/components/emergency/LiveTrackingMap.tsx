@@ -189,27 +189,43 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
 
     const defaultCenter: L.LatLngExpression = [20.5937, 78.9629]; // Center of India
 
-    mapRef.current = L.map(mapContainer.current, {
+    const map = L.map(mapContainer.current, {
       center: defaultCenter,
       zoom: 5,
       zoomControl: false,
     });
 
+    mapRef.current = map;
+
     // OpenStreetMap tiles - free, no API key, works great in India
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap',
       maxZoom: 19,
-    }).addTo(mapRef.current);
+    }).addTo(map);
 
     // Add zoom control to top-right
-    L.control.zoom({ position: 'topright' }).addTo(mapRef.current);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Ensure Leaflet measures the container correctly (especially after conditional rendering)
-    requestAnimationFrame(() => {
-      mapRef.current?.invalidateSize();
-    });
+    // Ensure Leaflet measures the container correctly - multiple attempts for reliability
+    const invalidateSizeMultiple = () => {
+      map.invalidateSize();
+    };
+
+    // Immediate invalidate
+    invalidateSizeMultiple();
+    
+    // After next frame
+    requestAnimationFrame(invalidateSizeMultiple);
+    
+    // After a short delay (for layout settling)
+    const timeoutId = setTimeout(invalidateSizeMultiple, 100);
+    
+    // After longer delay (for slower renders)
+    const timeoutId2 = setTimeout(invalidateSizeMultiple, 300);
 
     return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(timeoutId2);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;

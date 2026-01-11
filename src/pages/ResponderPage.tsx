@@ -25,17 +25,35 @@ const ResponderPage: React.FC = () => {
   // Get responder's current location
   const { latitude, longitude } = useGeolocation(true);
 
-  // Simulated patient location (emergency call location)
-  const patientLocation = useMemo(() => ({
-    lat: 28.5355 + 0.008,
-    lng: 77.391 + 0.006,
-  }), []);
+  // Simulated patient location - within 10km of responder's actual location
+  const patientLocation = useMemo(() => {
+    if (latitude && longitude) {
+      // Place patient ~2-3km away from responder (within 10km limit)
+      return {
+        lat: latitude + 0.022, // ~2.4km north
+        lng: longitude + 0.015, // ~1.3km east
+      };
+    }
+    // Fallback to Delhi NCR if no location
+    return {
+      lat: 28.5355 + 0.022,
+      lng: 77.391 + 0.015,
+    };
+  }, [latitude, longitude]);
 
-  // Simulated hospital location
-  const hospitalLocation = useMemo(() => ({
-    lat: 28.5355 - 0.005,
-    lng: 77.391 + 0.008,
-  }), []);
+  // Simulated hospital location - within 10km of responder
+  const hospitalLocation = useMemo(() => {
+    if (latitude && longitude) {
+      return {
+        lat: latitude - 0.018, // ~2km south
+        lng: longitude + 0.025, // ~2.2km east
+      };
+    }
+    return {
+      lat: 28.5355 - 0.018,
+      lng: 77.391 + 0.025,
+    };
+  }, [latitude, longitude]);
 
   // Responder's current location
   const responderLocation = useMemo(() => {
