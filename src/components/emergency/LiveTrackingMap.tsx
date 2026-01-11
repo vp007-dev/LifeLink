@@ -73,6 +73,10 @@ const formatDistance = (meters: number): string => {
   return `${(meters / 1000).toFixed(1)} km`;
 };
 
+// Maximum radius for routes/responders (10km)
+const MAX_RADIUS_KM = 10;
+const MAX_RADIUS_METERS = MAX_RADIUS_KM * 1000;
+
 const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   userLocation,
   responderLocation,
@@ -87,6 +91,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   const hospitalMarkerRef = useRef<L.Marker | null>(null);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const initialViewSetRef = useRef<boolean>(false);
+  const simulationInitRef = useRef<boolean>(false);
   
   const [simulatedResponder, setSimulatedResponder] = useState<{ lat: number; lng: number } | null>(null);
   const [simulatedHospital, setSimulatedHospital] = useState<{ lat: number; lng: number } | null>(null);
@@ -95,9 +100,21 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   const currentResponder = responderLocation || simulatedResponder;
   const currentHospital = hospitalLocation || simulatedHospital;
 
-  // Calculate live distance and ETA
+  // Check if responder is within 10km radius
+  const isResponderInRange = useMemo(() => {
+    if (!userLocation || !currentResponder) return false;
+    const dist = calculateDistance(
+      userLocation.lat,
+      userLocation.lng,
+      currentResponder.lat,
+      currentResponder.lng
+    );
+    return dist <= MAX_RADIUS_METERS;
+  }, [userLocation, currentResponder]);
+
+  // Calculate live distance and ETA (only if within range)
   const { distance, eta } = useMemo(() => {
-    if (!userLocation || !currentResponder || !showResponder) {
+    if (!userLocation || !currentResponder || !showResponder || !isResponderInRange) {
       return { distance: 0, eta: 0 };
     }
     const dist = calculateDistance(
@@ -107,7 +124,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       currentResponder.lng
     );
     return { distance: dist, eta: calculateETA(dist) };
-  }, [userLocation, currentResponder, showResponder]);
+  }, [userLocation, currentResponder, showResponder, isResponderInRange]);
 
   // Notify parent of distance/ETA updates
   useEffect(() => {
@@ -124,43 +141,49 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     }
   }, [userLocation]);
 
-  // Simulate responder and hospital locations for demo
+  // Simulate responder and hospital locations for demo (ONLY ONCE)
   useEffect(() => {
-    if (userLocation && showResponder) {
-      // Simulate responder 400m away, moving closer
+    if (userLocation && showResponder && !simulationInitRef.current) {
+      simulationInitRef.current = true;
+      
+      // Simulate responder within 10km (about 2-3km away for realism)
       const initialResponder = {
-        lat: userLocation.lat + 0.004,
-        lng: userLocation.lng + 0.003,
+        lat: userLocation.lat + 0.025, // ~2.8km north
+        lng: userLocation.lng + 0.018, // ~1.6km east
       };
       setSimulatedResponder(initialResponder);
 
-      // Simulate hospital 800m away
+      // Simulate hospital within 10km
       setSimulatedHospital({
-        lat: userLocation.lat - 0.007,
-        lng: userLocation.lng + 0.005,
+        lat: userLocation.lat - 0.035, // ~3.9km south
+        lng: userLocation.lng + 0.025, // ~2.2km east
       });
 
       // Animate responder movement
       const interval = setInterval(() => {
         setSimulatedResponder((prev) => {
-          if (!prev || !userLocation) return prev;
-          const newLat = prev.lat - (prev.lat - userLocation.lat) * 0.08;
-          const newLng = prev.lng - (prev.lng - userLocation.lng) * 0.08;
+          if (!prev) return prev;
+          // Use a stored reference to avoid stale closure
+          const targetLat = userLocation.lat;
+          const targetLng = userLocation.lng;
+          
+          const newLat = prev.lat - (prev.lat - targetLat) * 0.05;
+          const newLng = prev.lng - (prev.lng - targetLng) * 0.05;
           
           // Stop when very close
-          if (Math.abs(newLat - userLocation.lat) < 0.0003 && Math.abs(newLng - userLocation.lng) < 0.0003) {
+          if (Math.abs(newLat - targetLat) < 0.0003 && Math.abs(newLng - targetLng) < 0.0003) {
             clearInterval(interval);
-            return userLocation;
+            return { lat: targetLat, lng: targetLng };
           }
           return { lat: newLat, lng: newLng };
         });
-      }, 2000);
+      }, 3000);
 
       return () => clearInterval(interval);
     }
   }, [userLocation, showResponder]);
 
-  // Initialize map (wait until the container is actually rendered)
+  // Initialize map ONCE (no dependencies to prevent re-initialization)
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
@@ -192,7 +215,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
         mapRef.current = null;
       }
     };
-  }, [userLocation]);
+  }, []); // Empty deps - initialize only once
 
   // Update user location marker (but don't reset view after initial set)
   useEffect(() => {
@@ -249,11 +272,11 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     }
   }, [currentHospital, showResponder]);
 
-  // Draw route line between responder -> user -> hospital
+  // Draw route line between responder -> user -> hospital (only if within 10km)
   useEffect(() => {
     if (!mapRef.current) return;
 
-    if (userLocation && currentResponder && showResponder) {
+    if (userLocation && currentResponder && showResponder && isResponderInRange) {
       const routePoints: L.LatLngExpression[] = [
         [currentResponder.lat, currentResponder.lng],
         [userLocation.lat, userLocation.lng],
@@ -277,7 +300,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       mapRef.current.removeLayer(routeLineRef.current);
       routeLineRef.current = null;
     }
-  }, [userLocation, currentResponder, currentHospital, showResponder]);
+  }, [userLocation, currentResponder, currentHospital, showResponder, isResponderInRange]);
 
   // Loading state
   if (!userLocation) {
