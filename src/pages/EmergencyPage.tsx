@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield } from 'lucide-react';
+import { Shield, Ambulance, Phone, ExternalLink } from 'lucide-react';
 import MobileLayout from '@/components/layout/MobileLayout';
 import Header from '@/components/common/Header';
 import ThemeToggle from '@/components/theme/ThemeToggle';
@@ -9,11 +9,24 @@ import StatusCard from '@/components/emergency/StatusCard';
 import LiveTrackingMap from '@/components/emergency/LiveTrackingMap';
 import LocationPermissionFallback from '@/components/emergency/LocationPermissionFallback';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { triggerEmergencyFeedback } from '@/lib/feedback';
+import { AmbulanceGateway, AmbulanceDispatchResponse, AmbulanceStatusResponse } from '@/lib/ambulanceGateway';
 
 type EmergencyState = 'idle' | 'requesting' | 'searching' | 'found' | 'arriving';
+
+interface AmbulanceInfo {
+  dispatchId: string;
+  ambulanceType: string;
+  zone: string;
+  baseStation: string;
+  etaMinutes: number;
+  trackingUrl?: string;
+  contactNumber?: string;
+  status: 'dispatched' | 'en_route' | 'arrived' | 'completed' | 'cancelled';
+}
 
 const EmergencyPage: React.FC = () => {
   const navigate = useNavigate();
@@ -21,6 +34,9 @@ const EmergencyPage: React.FC = () => {
   const [state, setState] = useState<EmergencyState>('idle');
   const [liveDistance, setLiveDistance] = useState<number>(0);
   const [liveEta, setLiveEta] = useState<number>(0);
+  const [ambulanceInfo, setAmbulanceInfo] = useState<AmbulanceInfo | null>(null);
+  const [ambulanceLoading, setAmbulanceLoading] = useState(false);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
   
   const { 
     latitude, 
@@ -85,7 +101,85 @@ const EmergencyPage: React.FC = () => {
     return `${(meters / 1000).toFixed(1)} km away`;
   };
 
-  const handleEmergencyPress = () => {
+  // Cleanup ambulance subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, []);
+
+  // Handle ambulance status updates
+  const handleAmbulanceStatusUpdate = useCallback((status: AmbulanceStatusResponse) => {
+    if (status.success && status.status) {
+      setAmbulanceInfo(prev => prev ? {
+        ...prev,
+        status: status.status!,
+        etaMinutes: status.eta_remaining_minutes || prev.etaMinutes,
+      } : null);
+
+      if (status.status === 'arrived') {
+        toast({
+          title: 'Ambulance Arrived!',
+          description: 'Medical assistance has arrived at your location.',
+        });
+      }
+    }
+  }, [toast]);
+
+  // Auto-dispatch ambulance when SOS is triggered
+  const dispatchAmbulance = useCallback(async () => {
+    if (!latitude || !longitude) return;
+
+    setAmbulanceLoading(true);
+    
+    const emergencyId = `EM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const response = await AmbulanceGateway.dispatch({
+      emergency_id: emergencyId,
+      patient_lat: latitude,
+      patient_lng: longitude,
+      emergency_type: 'medical',
+      priority: 'critical',
+      description: 'SOS Emergency - Immediate assistance required',
+      requester_type: 'citizen',
+    });
+
+    setAmbulanceLoading(false);
+
+    if (response.success && response.dispatch_id) {
+      setAmbulanceInfo({
+        dispatchId: response.dispatch_id,
+        ambulanceType: response.ambulance_type || 'ALS',
+        zone: response.zone || 'Unknown',
+        baseStation: response.base_station || 'Central Station',
+        etaMinutes: response.eta_minutes || 8,
+        trackingUrl: response.tracking_url,
+        contactNumber: response.contact_number,
+        status: 'dispatched',
+      });
+
+      toast({
+        title: '🚑 Ambulance Dispatched!',
+        description: `${response.ambulance_type} unit en route. ETA: ${response.eta_minutes} minutes`,
+      });
+
+      // Subscribe to status updates
+      unsubscribeRef.current = AmbulanceGateway.subscribeToUpdates(
+        response.dispatch_id,
+        handleAmbulanceStatusUpdate
+      );
+    } else {
+      toast({
+        title: 'Ambulance Dispatch Failed',
+        description: response.error || 'Could not dispatch ambulance. Trying alternative responders.',
+        variant: 'destructive',
+      });
+    }
+  }, [latitude, longitude, toast, handleAmbulanceStatusUpdate]);
+
+  const handleEmergencyPress = async () => {
     // Accessibility feedback (requires a user gesture, so fire immediately)
     triggerEmergencyFeedback();
 
@@ -93,28 +187,64 @@ const EmergencyPage: React.FC = () => {
       setState('requesting');
       toast({
         title: 'Emergency Alert Sent',
-        description: 'Searching for nearby responders...',
+        description: 'Dispatching ambulance and searching for nearby responders...',
       });
 
-      // Simulate finding a responder
+      // Auto-dispatch government ambulance
+      dispatchAmbulance();
+
+      // Simulate finding a responder (runs in parallel with ambulance dispatch)
       setTimeout(() => setState('searching'), 1000);
       setTimeout(() => {
         setState('found');
         toast({
           title: 'Responder Found!',
-          description: 'Help is on the way.',
+          description: 'Additional help is on the way.',
         });
       }, 3000);
       setTimeout(() => setState('arriving'), 5000);
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    // Cancel ambulance if dispatched
+    if (ambulanceInfo?.dispatchId) {
+      await AmbulanceGateway.cancel(ambulanceInfo.dispatchId, 'User cancelled request');
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+    }
+
     setState('idle');
+    setAmbulanceInfo(null);
     toast({
       title: 'Emergency Cancelled',
       description: 'Your request has been cancelled.',
     });
+  };
+
+  // Get ambulance status badge variant
+  const getAmbulanceStatusVariant = (status: AmbulanceInfo['status']) => {
+    switch (status) {
+      case 'dispatched': return 'secondary';
+      case 'en_route': return 'default';
+      case 'arrived': return 'success';
+      case 'completed': return 'outline';
+      case 'cancelled': return 'destructive';
+      default: return 'secondary';
+    }
+  };
+
+  const getAmbulanceStatusText = (status: AmbulanceInfo['status']) => {
+    switch (status) {
+      case 'dispatched': return 'Dispatched';
+      case 'en_route': return 'En Route';
+      case 'arrived': return 'Arrived';
+      case 'completed': return 'Completed';
+      case 'cancelled': return 'Cancelled';
+      default: return status;
+    }
   };
 
   return (
@@ -172,9 +302,73 @@ const EmergencyPage: React.FC = () => {
 
           {state !== 'idle' && (
             <>
+              {/* Ambulance Status Card */}
+              {(ambulanceLoading || ambulanceInfo) && (
+                <div className="rounded-xl border bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Ambulance className="w-5 h-5 text-destructive" />
+                      <span className="font-semibold">Government Ambulance</span>
+                    </div>
+                    {ambulanceInfo && (
+                      <Badge variant={getAmbulanceStatusVariant(ambulanceInfo.status) as any}>
+                        {getAmbulanceStatusText(ambulanceInfo.status)}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {ambulanceLoading && !ambulanceInfo && (
+                    <p className="text-sm text-muted-foreground">Dispatching ambulance...</p>
+                  )}
+                  
+                  {ambulanceInfo && (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Type:</span>
+                        <span className="font-medium">{ambulanceInfo.ambulanceType}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Base Station:</span>
+                        <span className="font-medium">{ambulanceInfo.baseStation}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">ETA:</span>
+                        <span className="font-medium text-destructive">{ambulanceInfo.etaMinutes} min</span>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex gap-2 pt-2">
+                        {ambulanceInfo.contactNumber && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => window.open(`tel:${ambulanceInfo.contactNumber}`, '_self')}
+                          >
+                            <Phone className="w-4 h-4 mr-1" />
+                            Call
+                          </Button>
+                        )}
+                        {ambulanceInfo.trackingUrl && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => window.open(ambulanceInfo.trackingUrl, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            Track
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <StatusCard
                 type="responder"
-                title="Responder"
+                title="Nearby Responder"
                 value={state === 'searching' ? 'Searching...' : 'Rajesh Kumar'}
                 subtitle={state !== 'searching' ? 'Auto Rickshaw Driver' : undefined}
                 status={state === 'searching' ? 'pending' : 'active'}
@@ -183,7 +377,7 @@ const EmergencyPage: React.FC = () => {
               {(state === 'found' || state === 'arriving') && (
                 <StatusCard
                   type="eta"
-                  title="Estimated Arrival"
+                  title="Responder Arrival"
                   value={liveEta > 0 ? `${liveEta} min` : 'Calculating...'}
                   subtitle={liveDistance > 0 ? formatDistance(liveDistance) : undefined}
                   status="active"
