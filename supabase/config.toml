@@ -1,0 +1,4 @@
+project_id = "jszncpeifiiueaftyupv"
+
+[functions.smart-dispatch]
+verify_jwt = false
