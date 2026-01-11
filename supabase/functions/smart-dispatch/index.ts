@@ -39,6 +39,42 @@ const EMERGENCY_TYPE_PRIORITY: Record<string, string> = {
   'assistance': 'low',
 };
 
+// ========================================
+// VEHICLE TYPE PROFILES FOR TRAFFIC-AWARE ETA
+// ========================================
+interface VehicleProfile {
+  avgSpeed: number;
+  peakSpeed: number;
+  trafficMultiplier: number;
+  priorityScore: number;
+  canUseSirens: boolean;
+}
+
+const VEHICLE_PROFILES: Record<string, VehicleProfile> = {
+  bike: { avgSpeed: 25, peakSpeed: 40, trafficMultiplier: 0.3, priorityScore: 60, canUseSirens: false },
+  auto: { avgSpeed: 20, peakSpeed: 30, trafficMultiplier: 0.5, priorityScore: 40, canUseSirens: false },
+  car: { avgSpeed: 30, peakSpeed: 50, trafficMultiplier: 0.7, priorityScore: 50, canUseSirens: false },
+  ambulance: { avgSpeed: 35, peakSpeed: 60, trafficMultiplier: 0.2, priorityScore: 100, canUseSirens: true },
+  police: { avgSpeed: 40, peakSpeed: 80, trafficMultiplier: 0.15, priorityScore: 90, canUseSirens: true },
+};
+
+// Traffic multipliers based on time of day
+const TRAFFIC_MULTIPLIERS = {
+  free: 1.0,
+  light: 1.2,
+  moderate: 1.5,
+  heavy: 2.0,
+  severe: 3.0,
+};
+
+// Estimate traffic based on hour (India timings)
+function estimateTrafficLevel(hour: number): string {
+  if ((hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 20)) return 'heavy';
+  if ((hour >= 7 && hour < 8) || (hour > 10 && hour < 17)) return 'moderate';
+  if ((hour >= 6 && hour < 7) || (hour >= 20 && hour <= 22)) return 'light';
+  return 'free';
+}
+
 // Haversine formula to calculate distance between two coordinates
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371; // Earth's radius in km
@@ -51,14 +87,45 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c;
 }
 
-// Calculate ETA based on distance (assuming avg speed of 30 km/h in urban areas)
-function calculateETA(distanceKm: number): number {
-  const avgSpeedKmh = 30;
-  return Math.ceil((distanceKm / avgSpeedKmh) * 60);
+// TRAFFIC-AWARE ETA CALCULATION
+function calculateTrafficAwareETA(
+  distanceKm: number, 
+  vehicleType: string = 'bike',
+  isEmergency: boolean = true
+): { baseEta: number; trafficAdjustedEta: number; trafficLevel: string } {
+  const vehicle = VEHICLE_PROFILES[vehicleType] || VEHICLE_PROFILES.bike;
+  const hour = new Date().getHours();
+  const trafficLevel = estimateTrafficLevel(hour);
+  const trafficMultiplier = TRAFFIC_MULTIPLIERS[trafficLevel as keyof typeof TRAFFIC_MULTIPLIERS];
+  
+  // Use peak speed for emergencies with sirens
+  const usingSirens = isEmergency && vehicle.canUseSirens;
+  const baseSpeed = usingSirens ? vehicle.peakSpeed : vehicle.avgSpeed;
+  
+  // Calculate base ETA
+  const baseEta = Math.ceil((distanceKm / baseSpeed) * 60);
+  
+  // Apply traffic adjustment (reduced for vehicles less affected by traffic)
+  const effectiveTrafficMultiplier = 1 + (trafficMultiplier - 1) * vehicle.trafficMultiplier;
+  const trafficAdjustedEta = Math.ceil(baseEta * effectiveTrafficMultiplier);
+  
+  return { baseEta, trafficAdjustedEta, trafficLevel };
 }
 
-// Score responders based on distance, rating, and availability
-function scoreResponder(responder: any, patientLat: number, patientLng: number): number {
+// Legacy ETA function for backward compatibility
+function calculateETA(distanceKm: number): number {
+  return calculateTrafficAwareETA(distanceKm).trafficAdjustedEta;
+}
+
+// Score responders with VEHICLE TYPE PRIORITIZATION
+function scoreResponder(
+  responder: any, 
+  patientLat: number, 
+  patientLng: number,
+  emergencyPriority: string = 'medium'
+): number {
+  if (!responder.current_lat || !responder.current_lng) return 0;
+  
   const distance = calculateDistance(
     responder.current_lat,
     responder.current_lng,
@@ -66,16 +133,37 @@ function scoreResponder(responder: any, patientLat: number, patientLng: number):
     patientLng
   );
   
-  // Distance score (closer = higher score, max 50 points)
-  const distanceScore = Math.max(0, 50 - (distance * 5));
+  // Check if within responder's max range
+  const maxRange = responder.max_range_km || 10;
+  if (distance > maxRange) return 0;
   
-  // Rating score (max 30 points)
-  const ratingScore = (responder.rating || 5) * 6;
+  const vehicleType = responder.vehicle_type || 'bike';
+  const vehicle = VEHICLE_PROFILES[vehicleType] || VEHICLE_PROFILES.bike;
+  const eta = calculateTrafficAwareETA(distance, vehicleType);
   
-  // Experience score (max 20 points)
-  const experienceScore = Math.min(20, (responder.total_rescues || 0) * 2);
+  // Distance score (closer = higher score, max 40 points)
+  const distanceScore = Math.max(0, 40 - (distance * 4));
   
-  return distanceScore + ratingScore + experienceScore;
+  // ETA score (faster = higher, max 25 points)
+  const etaScore = Math.max(0, 25 - eta.trafficAdjustedEta);
+  
+  // Vehicle priority score (max 20 points)
+  // Critical emergencies favor ambulances/police
+  let vehiclePriorityBonus = 0;
+  if (emergencyPriority === 'critical' || emergencyPriority === 'high') {
+    vehiclePriorityBonus = (vehicle.priorityScore / 100) * 20;
+  } else {
+    // For lower priority, bikes are actually better (faster, more agile)
+    vehiclePriorityBonus = vehicleType === 'bike' ? 15 : 10;
+  }
+  
+  // Rating score (max 10 points)
+  const ratingScore = (responder.rating || 5) * 2;
+  
+  // Experience score (max 5 points)
+  const experienceScore = Math.min(5, (responder.total_rescues || 0) * 0.5);
+  
+  return distanceScore + etaScore + vehiclePriorityBonus + ratingScore + experienceScore;
 }
 
 serve(async (req) => {
@@ -479,6 +567,76 @@ serve(async (req) => {
         });
       }
 
+      // ========================================
+      // 8. REASSIGNMENT ENGINE
+      // ========================================
+      case 'reassign_emergency': {
+        const { emergency_id, current_responder_id, reason } = params;
+        
+        console.log(`[SmartDispatch] Reassigning emergency ${emergency_id}, reason: ${reason}`);
+
+        // Get emergency details
+        const { data: emergency } = await supabase
+          .from('emergencies')
+          .select('*')
+          .eq('id', emergency_id)
+          .single();
+
+        if (!emergency || emergency.status === 'completed') {
+          return new Response(JSON.stringify({
+            success: false,
+            reason,
+            message: 'Emergency not found or already completed'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Free up current responder
+        if (current_responder_id) {
+          await supabase
+            .from('responders')
+            .update({ status: 'available' })
+            .eq('id', current_responder_id);
+
+          await supabase
+            .from('dispatch_broadcasts')
+            .update({ response_status: 'reassigned' })
+            .eq('emergency_id', emergency_id)
+            .eq('responder_id', current_responder_id);
+        }
+
+        // Reset emergency to pending
+        await supabase
+          .from('emergencies')
+          .update({ status: 'pending' })
+          .eq('id', emergency_id);
+
+        // Broadcast to new responders (excluding current)
+        const broadcastResult = await broadcastToResponders(
+          supabase, emergency, 50, 10
+        );
+
+        // Log reassignment
+        await supabase.from('reassignment_logs').insert({
+          emergency_id,
+          from_responder_id: current_responder_id,
+          to_responder_id: null, // Will be set when new responder accepts
+          reason,
+          details: { broadcast_count: broadcastResult.count }
+        });
+
+        return new Response(JSON.stringify({
+          success: broadcastResult.count > 0,
+          reason,
+          message: broadcastResult.count > 0 
+            ? `Reassigned to ${broadcastResult.count} new responders`
+            : 'No available responders found'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
       default:
         return new Response(JSON.stringify({ error: 'Unknown action' }), {
           status: 400,
@@ -528,9 +686,10 @@ async function broadcastToResponders(
         emergency.patient_lat,
         emergency.patient_lng
       ),
-      score: scoreResponder(r, emergency.patient_lat, emergency.patient_lng)
+      score: scoreResponder(r, emergency.patient_lat, emergency.patient_lng, emergency.priority),
+      eta: calculateTrafficAwareETA(calculateDistance(r.current_lat, r.current_lng, emergency.patient_lat, emergency.patient_lng), r.vehicle_type || 'bike')
     }))
-    .filter((r: any) => r.distance <= radiusKm)
+    .filter((r: any) => r.distance <= radiusKm && r.score > 0)
     .sort((a: any, b: any) => b.score - a.score);
 
   console.log(`[SmartDispatch] Found ${scoredResponders.length} responders within ${radiusKm}km`);

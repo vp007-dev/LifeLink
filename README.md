@@ -4,7 +4,7 @@
 # LifeLink – Emergency First Responder Network
 
 Live prototype here:  
-https://life-link-topaz.vercel.app/
+https://life-link-7qde.vercel.app/
 
 ---
 
@@ -49,7 +49,7 @@ These features are implemented and demonstrated in the prototype:
 
 ### 📺 Demo
 The prototype can be accessed here:  
-👉 https://life-link-topaz.vercel.app/
+👉 https://life-link-7qde.vercel.app/
 
 ---
 

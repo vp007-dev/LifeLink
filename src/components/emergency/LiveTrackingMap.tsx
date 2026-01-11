@@ -1,14 +1,17 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Locate } from 'lucide-react';
+import { Locate, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import TrafficOverlay, { TrafficLegend, TrafficStatusBadge } from '@/components/map/TrafficOverlay';
+import { estimateTrafficLevel } from '@/lib/responderNetwork';
 
 interface LiveTrackingMapProps {
   userLocation: { lat: number; lng: number } | null;
   responderLocation?: { lat: number; lng: number } | null;
   hospitalLocation?: { lat: number; lng: number } | null;
   showResponder?: boolean;
+  showTraffic?: boolean;
   onDistanceUpdate?: (distance: number, eta: number) => void;
 }
 
@@ -82,6 +85,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   responderLocation,
   hospitalLocation,
   showResponder = false,
+  showTraffic = true,
   onDistanceUpdate,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -95,6 +99,10 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   
   const [simulatedResponder, setSimulatedResponder] = useState<{ lat: number; lng: number } | null>(null);
   const [simulatedHospital, setSimulatedHospital] = useState<{ lat: number; lng: number } | null>(null);
+  const [trafficEnabled, setTrafficEnabled] = useState(showTraffic);
+  
+  // Get current traffic level
+  const currentTrafficLevel = useMemo(() => estimateTrafficLevel(new Date().getHours()), []);
 
   // Current responder position (either provided or simulated)
   const currentResponder = responderLocation || simulatedResponder;
@@ -334,18 +342,44 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     <div className="relative w-full h-48 rounded-xl overflow-hidden border border-border">
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       
-      {/* Re-center button */}
-      <button
-        className="absolute top-2 left-2 z-[1000] h-8 w-8 rounded-lg bg-background/90 backdrop-blur-sm flex items-center justify-center touch-feedback"
-        onClick={handleRecenter}
-        title="Re-center to your location"
-      >
-        <Locate className="w-4 h-4 text-foreground" />
-      </button>
+      {/* Traffic Overlay */}
+      <TrafficOverlay 
+        map={mapRef.current} 
+        centerLocation={userLocation}
+        radiusKm={5}
+        enabled={trafficEnabled}
+      />
+      
+      {/* Control buttons */}
+      <div className="absolute top-2 left-2 z-[1000] flex gap-1.5">
+        <button
+          className="h-8 w-8 rounded-lg bg-background/90 backdrop-blur-sm flex items-center justify-center touch-feedback"
+          onClick={handleRecenter}
+          title="Re-center to your location"
+        >
+          <Locate className="w-4 h-4 text-foreground" />
+        </button>
+        <button
+          className={`h-8 w-8 rounded-lg backdrop-blur-sm flex items-center justify-center touch-feedback transition-colors ${
+            trafficEnabled ? 'bg-primary/90 text-primary-foreground' : 'bg-background/90 text-foreground'
+          }`}
+          onClick={() => setTrafficEnabled(!trafficEnabled)}
+          title={trafficEnabled ? 'Hide traffic' : 'Show traffic'}
+        >
+          <Radio className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Traffic Status Badge */}
+      {trafficEnabled && (
+        <div className="absolute top-2 right-2 z-[1000] bg-background/90 backdrop-blur-sm rounded-lg px-2 py-1">
+          <TrafficStatusBadge />
+        </div>
+      )}
 
       {/* Live ETA/Distance overlay when responder is active */}
       {showResponder && distance > 0 && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] bg-success/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-semibold text-success-foreground flex items-center gap-2 shadow-lg">
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[1000] bg-success/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-semibold text-success-foreground flex items-center gap-2 shadow-lg">
           <span className="animate-pulse">🏍️</span>
           <span>{formatDistance(distance)}</span>
           <span className="text-success-foreground/70">•</span>
@@ -370,6 +404,11 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
               <span>Hospital</span>
             </div>
           </>
+        )}
+        {trafficEnabled && (
+          <div className="mt-2 pt-2 border-t border-border">
+            <TrafficLegend currentLevel={currentTrafficLevel} />
+          </div>
         )}
       </div>
     </div>
