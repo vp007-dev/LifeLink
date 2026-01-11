@@ -1,13 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Locate, Navigation } from 'lucide-react';
+import { Locate, Navigation, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import TrafficOverlay, { TrafficLegend, TrafficStatusBadge } from '@/components/map/TrafficOverlay';
+import { estimateTrafficLevel } from '@/lib/responderNetwork';
 
 interface ResponderNavigationMapProps {
   responderLocation: { lat: number; lng: number } | null;
   patientLocation: { lat: number; lng: number };
   hospitalLocation?: { lat: number; lng: number } | null;
+  showTraffic?: boolean;
   onDistanceUpdate?: (distance: number, eta: number) => void;
 }
 
@@ -72,10 +75,15 @@ const formatDistance = (meters: number): string => {
   return `${(meters / 1000).toFixed(1)} km`;
 };
 
+// Maximum radius for routes (10km)
+const MAX_RADIUS_KM = 10;
+const MAX_RADIUS_METERS = MAX_RADIUS_KM * 1000;
+
 const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
   responderLocation,
   patientLocation,
   hospitalLocation,
+  showTraffic = true,
   onDistanceUpdate,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -85,8 +93,25 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
   const hospitalMarkerRef = useRef<L.Marker | null>(null);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const initialViewSetRef = useRef<boolean>(false);
+  
+  const [trafficEnabled, setTrafficEnabled] = useState(showTraffic);
+  
+  // Get current traffic level
+  const currentTrafficLevel = useMemo(() => estimateTrafficLevel(new Date().getHours()), []);
 
-  // Calculate live distance and ETA
+  // Check if patient is within 10km radius
+  const isPatientInRange = useMemo(() => {
+    if (!responderLocation) return false;
+    const dist = calculateDistance(
+      responderLocation.lat,
+      responderLocation.lng,
+      patientLocation.lat,
+      patientLocation.lng
+    );
+    return dist <= MAX_RADIUS_METERS;
+  }, [responderLocation, patientLocation]);
+
+  // Calculate live distance and ETA (only if within range)
   const { distance, eta } = useMemo(() => {
     if (!responderLocation) {
       return { distance: 0, eta: 0 };
@@ -97,6 +122,7 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
       patientLocation.lat,
       patientLocation.lng
     );
+    // Return distance info even if out of range (for display purposes)
     return { distance: dist, eta: calculateETA(dist) };
   }, [responderLocation, patientLocation]);
 
@@ -107,14 +133,15 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
     }
   }, [distance, eta, onDistanceUpdate]);
 
-  // Re-center handler
+  // Re-center handler - preserve current zoom level
   const handleRecenter = useCallback(() => {
     if (mapRef.current && responderLocation) {
-      mapRef.current.setView([responderLocation.lat, responderLocation.lng], 15, { animate: true });
+      const currentZoom = mapRef.current.getZoom();
+      mapRef.current.setView([responderLocation.lat, responderLocation.lng], currentZoom, { animate: true });
     }
   }, [responderLocation]);
 
-  // Fit all markers in view
+  // Fit all markers in view (manual action only)
   const handleFitAll = useCallback(() => {
     if (!mapRef.current) return;
     
@@ -134,7 +161,7 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
     mapRef.current.fitBounds(bounds, { padding: [40, 40] });
   }, [responderLocation, patientLocation, hospitalLocation]);
 
-  // Initialize map
+  // Initialize map ONCE (empty deps to prevent re-initialization)
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
@@ -164,7 +191,8 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
         mapRef.current = null;
       }
     };
-  }, [patientLocation]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - initialize only once
 
   // Update patient marker
   useEffect(() => {
@@ -220,30 +248,36 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
     }
   }, [hospitalLocation]);
 
-  // Draw route line
+  // Draw route line (only if within 10km)
   useEffect(() => {
     if (!mapRef.current || !responderLocation) return;
 
-    const routePoints: L.LatLngExpression[] = [
-      [responderLocation.lat, responderLocation.lng],
-      [patientLocation.lat, patientLocation.lng],
-    ];
+    if (isPatientInRange) {
+      const routePoints: L.LatLngExpression[] = [
+        [responderLocation.lat, responderLocation.lng],
+        [patientLocation.lat, patientLocation.lng],
+      ];
 
-    if (hospitalLocation) {
-      routePoints.push([hospitalLocation.lat, hospitalLocation.lng]);
-    }
+      if (hospitalLocation) {
+        routePoints.push([hospitalLocation.lat, hospitalLocation.lng]);
+      }
 
-    if (routeLineRef.current) {
-      routeLineRef.current.setLatLngs(routePoints);
-    } else {
-      routeLineRef.current = L.polyline(routePoints, {
-        color: '#22c55e',
-        weight: 4,
-        opacity: 0.8,
-        dashArray: '10, 10',
-      }).addTo(mapRef.current);
+      if (routeLineRef.current) {
+        routeLineRef.current.setLatLngs(routePoints);
+      } else {
+        routeLineRef.current = L.polyline(routePoints, {
+          color: '#22c55e',
+          weight: 4,
+          opacity: 0.8,
+          dashArray: '10, 10',
+        }).addTo(mapRef.current);
+      }
+    } else if (routeLineRef.current) {
+      // Remove route if out of range
+      mapRef.current.removeLayer(routeLineRef.current);
+      routeLineRef.current = null;
     }
-  }, [responderLocation, patientLocation, hospitalLocation]);
+  }, [responderLocation, patientLocation, hospitalLocation, isPatientInRange]);
 
   // Loading state when no responder location
   if (!responderLocation) {
@@ -261,8 +295,16 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
     <div className="relative w-full h-56 rounded-xl overflow-hidden border border-border">
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       
+      {/* Traffic Overlay */}
+      <TrafficOverlay 
+        map={mapRef.current} 
+        centerLocation={responderLocation}
+        radiusKm={5}
+        enabled={trafficEnabled}
+      />
+      
       {/* Control buttons */}
-      <div className="absolute top-2 left-2 z-[1000] flex gap-2">
+      <div className="absolute top-2 left-2 z-[1000] flex gap-1.5">
         <button
           className="h-8 w-8 rounded-lg bg-background/90 backdrop-blur-sm flex items-center justify-center touch-feedback"
           onClick={handleRecenter}
@@ -277,11 +319,27 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
         >
           <Navigation className="w-4 h-4 text-foreground" />
         </button>
+        <button
+          className={`h-8 w-8 rounded-lg backdrop-blur-sm flex items-center justify-center touch-feedback transition-colors ${
+            trafficEnabled ? 'bg-primary/90 text-primary-foreground' : 'bg-background/90 text-foreground'
+          }`}
+          onClick={() => setTrafficEnabled(!trafficEnabled)}
+          title={trafficEnabled ? 'Hide traffic' : 'Show traffic'}
+        >
+          <Radio className="w-4 h-4" />
+        </button>
       </div>
+
+      {/* Traffic Status Badge */}
+      {trafficEnabled && (
+        <div className="absolute top-2 right-12 z-[1000] bg-background/90 backdrop-blur-sm rounded-lg px-2 py-1">
+          <TrafficStatusBadge />
+        </div>
+      )}
 
       {/* Live ETA/Distance overlay */}
       {distance > 0 && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] bg-primary/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-semibold text-primary-foreground flex items-center gap-2 shadow-lg">
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[1000] bg-primary/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-semibold text-primary-foreground flex items-center gap-2 shadow-lg">
           <span>🆘</span>
           <span>{formatDistance(distance)}</span>
           <span className="text-primary-foreground/70">•</span>
@@ -303,6 +361,11 @@ const ResponderNavigationMap: React.FC<ResponderNavigationMapProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-sm">🏥</span>
             <span>Hospital</span>
+          </div>
+        )}
+        {trafficEnabled && (
+          <div className="mt-2 pt-2 border-t border-border">
+            <TrafficLegend currentLevel={currentTrafficLevel} />
           </div>
         )}
       </div>

@@ -1,14 +1,17 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Locate } from 'lucide-react';
+import { Locate, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import TrafficOverlay, { TrafficLegend, TrafficStatusBadge } from '@/components/map/TrafficOverlay';
+import { estimateTrafficLevel } from '@/lib/responderNetwork';
 
 interface LiveTrackingMapProps {
   userLocation: { lat: number; lng: number } | null;
   responderLocation?: { lat: number; lng: number } | null;
   hospitalLocation?: { lat: number; lng: number } | null;
   showResponder?: boolean;
+  showTraffic?: boolean;
   onDistanceUpdate?: (distance: number, eta: number) => void;
 }
 
@@ -73,11 +76,16 @@ const formatDistance = (meters: number): string => {
   return `${(meters / 1000).toFixed(1)} km`;
 };
 
+// Maximum radius for routes/responders (10km)
+const MAX_RADIUS_KM = 10;
+const MAX_RADIUS_METERS = MAX_RADIUS_KM * 1000;
+
 const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   userLocation,
   responderLocation,
   hospitalLocation,
   showResponder = false,
+  showTraffic = true,
   onDistanceUpdate,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -87,17 +95,34 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   const hospitalMarkerRef = useRef<L.Marker | null>(null);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const initialViewSetRef = useRef<boolean>(false);
+  const simulationInitRef = useRef<boolean>(false);
   
   const [simulatedResponder, setSimulatedResponder] = useState<{ lat: number; lng: number } | null>(null);
   const [simulatedHospital, setSimulatedHospital] = useState<{ lat: number; lng: number } | null>(null);
+  const [trafficEnabled, setTrafficEnabled] = useState(showTraffic);
+  
+  // Get current traffic level
+  const currentTrafficLevel = useMemo(() => estimateTrafficLevel(new Date().getHours()), []);
 
   // Current responder position (either provided or simulated)
   const currentResponder = responderLocation || simulatedResponder;
   const currentHospital = hospitalLocation || simulatedHospital;
 
-  // Calculate live distance and ETA
+  // Check if responder is within 10km radius
+  const isResponderInRange = useMemo(() => {
+    if (!userLocation || !currentResponder) return false;
+    const dist = calculateDistance(
+      userLocation.lat,
+      userLocation.lng,
+      currentResponder.lat,
+      currentResponder.lng
+    );
+    return dist <= MAX_RADIUS_METERS;
+  }, [userLocation, currentResponder]);
+
+  // Calculate live distance and ETA (only if within range)
   const { distance, eta } = useMemo(() => {
-    if (!userLocation || !currentResponder || !showResponder) {
+    if (!userLocation || !currentResponder || !showResponder || !isResponderInRange) {
       return { distance: 0, eta: 0 };
     }
     const dist = calculateDistance(
@@ -107,7 +132,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       currentResponder.lng
     );
     return { distance: dist, eta: calculateETA(dist) };
-  }, [userLocation, currentResponder, showResponder]);
+  }, [userLocation, currentResponder, showResponder, isResponderInRange]);
 
   // Notify parent of distance/ETA updates
   useEffect(() => {
@@ -124,75 +149,97 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     }
   }, [userLocation]);
 
-  // Simulate responder and hospital locations for demo
+  // Simulate responder and hospital locations for demo (ONLY ONCE)
   useEffect(() => {
-    if (userLocation && showResponder) {
-      // Simulate responder 400m away, moving closer
+    if (userLocation && showResponder && !simulationInitRef.current) {
+      simulationInitRef.current = true;
+      
+      // Simulate responder within 10km (about 2-3km away for realism)
       const initialResponder = {
-        lat: userLocation.lat + 0.004,
-        lng: userLocation.lng + 0.003,
+        lat: userLocation.lat + 0.025, // ~2.8km north
+        lng: userLocation.lng + 0.018, // ~1.6km east
       };
       setSimulatedResponder(initialResponder);
 
-      // Simulate hospital 800m away
+      // Simulate hospital within 10km
       setSimulatedHospital({
-        lat: userLocation.lat - 0.007,
-        lng: userLocation.lng + 0.005,
+        lat: userLocation.lat - 0.035, // ~3.9km south
+        lng: userLocation.lng + 0.025, // ~2.2km east
       });
 
       // Animate responder movement
       const interval = setInterval(() => {
         setSimulatedResponder((prev) => {
-          if (!prev || !userLocation) return prev;
-          const newLat = prev.lat - (prev.lat - userLocation.lat) * 0.08;
-          const newLng = prev.lng - (prev.lng - userLocation.lng) * 0.08;
+          if (!prev) return prev;
+          // Use a stored reference to avoid stale closure
+          const targetLat = userLocation.lat;
+          const targetLng = userLocation.lng;
+          
+          const newLat = prev.lat - (prev.lat - targetLat) * 0.05;
+          const newLng = prev.lng - (prev.lng - targetLng) * 0.05;
           
           // Stop when very close
-          if (Math.abs(newLat - userLocation.lat) < 0.0003 && Math.abs(newLng - userLocation.lng) < 0.0003) {
+          if (Math.abs(newLat - targetLat) < 0.0003 && Math.abs(newLng - targetLng) < 0.0003) {
             clearInterval(interval);
-            return userLocation;
+            return { lat: targetLat, lng: targetLng };
           }
           return { lat: newLat, lng: newLng };
         });
-      }, 2000);
+      }, 3000);
 
       return () => clearInterval(interval);
     }
   }, [userLocation, showResponder]);
 
-  // Initialize map (wait until the container is actually rendered)
+  // Initialize map ONCE (no dependencies to prevent re-initialization)
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
     const defaultCenter: L.LatLngExpression = [20.5937, 78.9629]; // Center of India
 
-    mapRef.current = L.map(mapContainer.current, {
+    const map = L.map(mapContainer.current, {
       center: defaultCenter,
       zoom: 5,
       zoomControl: false,
     });
 
+    mapRef.current = map;
+
     // OpenStreetMap tiles - free, no API key, works great in India
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap',
       maxZoom: 19,
-    }).addTo(mapRef.current);
+    }).addTo(map);
 
     // Add zoom control to top-right
-    L.control.zoom({ position: 'topright' }).addTo(mapRef.current);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Ensure Leaflet measures the container correctly (especially after conditional rendering)
-    requestAnimationFrame(() => {
-      mapRef.current?.invalidateSize();
-    });
+    // Ensure Leaflet measures the container correctly - multiple attempts for reliability
+    const invalidateSizeMultiple = () => {
+      map.invalidateSize();
+    };
+
+    // Immediate invalidate
+    invalidateSizeMultiple();
+    
+    // After next frame
+    requestAnimationFrame(invalidateSizeMultiple);
+    
+    // After a short delay (for layout settling)
+    const timeoutId = setTimeout(invalidateSizeMultiple, 100);
+    
+    // After longer delay (for slower renders)
+    const timeoutId2 = setTimeout(invalidateSizeMultiple, 300);
 
     return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(timeoutId2);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
-  }, [userLocation]);
+  }, []); // Empty deps - initialize only once
 
   // Update user location marker (but don't reset view after initial set)
   useEffect(() => {
@@ -249,11 +296,11 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     }
   }, [currentHospital, showResponder]);
 
-  // Draw route line between responder -> user -> hospital
+  // Draw route line between responder -> user -> hospital (only if within 10km)
   useEffect(() => {
     if (!mapRef.current) return;
 
-    if (userLocation && currentResponder && showResponder) {
+    if (userLocation && currentResponder && showResponder && isResponderInRange) {
       const routePoints: L.LatLngExpression[] = [
         [currentResponder.lat, currentResponder.lng],
         [userLocation.lat, userLocation.lng],
@@ -277,7 +324,7 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       mapRef.current.removeLayer(routeLineRef.current);
       routeLineRef.current = null;
     }
-  }, [userLocation, currentResponder, currentHospital, showResponder]);
+  }, [userLocation, currentResponder, currentHospital, showResponder, isResponderInRange]);
 
   // Loading state
   if (!userLocation) {
@@ -295,18 +342,44 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     <div className="relative w-full h-48 rounded-xl overflow-hidden border border-border">
       <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
       
-      {/* Re-center button */}
-      <button
-        className="absolute top-2 left-2 z-[1000] h-8 w-8 rounded-lg bg-background/90 backdrop-blur-sm flex items-center justify-center touch-feedback"
-        onClick={handleRecenter}
-        title="Re-center to your location"
-      >
-        <Locate className="w-4 h-4 text-foreground" />
-      </button>
+      {/* Traffic Overlay */}
+      <TrafficOverlay 
+        map={mapRef.current} 
+        centerLocation={userLocation}
+        radiusKm={5}
+        enabled={trafficEnabled}
+      />
+      
+      {/* Control buttons */}
+      <div className="absolute top-2 left-2 z-[1000] flex gap-1.5">
+        <button
+          className="h-8 w-8 rounded-lg bg-background/90 backdrop-blur-sm flex items-center justify-center touch-feedback"
+          onClick={handleRecenter}
+          title="Re-center to your location"
+        >
+          <Locate className="w-4 h-4 text-foreground" />
+        </button>
+        <button
+          className={`h-8 w-8 rounded-lg backdrop-blur-sm flex items-center justify-center touch-feedback transition-colors ${
+            trafficEnabled ? 'bg-primary/90 text-primary-foreground' : 'bg-background/90 text-foreground'
+          }`}
+          onClick={() => setTrafficEnabled(!trafficEnabled)}
+          title={trafficEnabled ? 'Hide traffic' : 'Show traffic'}
+        >
+          <Radio className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Traffic Status Badge */}
+      {trafficEnabled && (
+        <div className="absolute top-2 right-2 z-[1000] bg-background/90 backdrop-blur-sm rounded-lg px-2 py-1">
+          <TrafficStatusBadge />
+        </div>
+      )}
 
       {/* Live ETA/Distance overlay when responder is active */}
       {showResponder && distance > 0 && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] bg-success/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-semibold text-success-foreground flex items-center gap-2 shadow-lg">
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[1000] bg-success/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-semibold text-success-foreground flex items-center gap-2 shadow-lg">
           <span className="animate-pulse">🏍️</span>
           <span>{formatDistance(distance)}</span>
           <span className="text-success-foreground/70">•</span>
@@ -331,6 +404,11 @@ const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
               <span>Hospital</span>
             </div>
           </>
+        )}
+        {trafficEnabled && (
+          <div className="mt-2 pt-2 border-t border-border">
+            <TrafficLegend currentLevel={currentTrafficLevel} />
+          </div>
         )}
       </div>
     </div>
